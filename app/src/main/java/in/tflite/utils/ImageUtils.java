@@ -8,6 +8,8 @@ import android.util.Log;
 import java.io.File;
 import java.io.FileOutputStream;
 
+import in.BackgroundCameraApp;
+
 /**
  * Utility class for manipulating images.
  */
@@ -51,7 +53,7 @@ public class ImageUtils {
      */
     public static void saveBitmap(final Bitmap bitmap, final String filename) {
         final String root =
-                Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "tensorflow";
+                BackgroundCameraApp.Companion.getContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES) + File.separator + "tensorflow";
         Log.i(TAG, String.format("Saving %dx%d bitmap to %s.", bitmap.getWidth(), bitmap.getHeight(), root));
         final File myDir = new File(root);
 
@@ -76,7 +78,7 @@ public class ImageUtils {
 
     public static File saveDetectedImage(final Bitmap bitmap, final String filename) {
         final String root =
-                Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "tensorflow";
+                BackgroundCameraApp.Companion.getContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES) + File.separator + "tensorflow";
         Log.i(TAG, String.format("Saving %dx%d bitmap to %s.", bitmap.getWidth(), bitmap.getHeight(), root));
         final File myDir = new File(root);
 
