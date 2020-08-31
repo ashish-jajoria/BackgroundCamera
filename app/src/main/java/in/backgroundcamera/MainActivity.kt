@@ -13,7 +13,6 @@ import android.view.Surface
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.camera2.impl.compat.CameraManagerCompat
 import androidx.camera.core.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -78,7 +77,7 @@ class MainActivity : AppCompatActivity() {
             parent.removeView(viewFinder)
             parent.addView(viewFinder, 0)
 
-            viewFinder.surfaceTexture = it.surfaceTexture
+            viewFinder.setSurfaceTexture(it.surfaceTexture)
             updateTransform()
         }
 
