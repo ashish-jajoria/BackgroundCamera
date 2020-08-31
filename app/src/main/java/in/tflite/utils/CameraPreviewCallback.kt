@@ -2,6 +2,7 @@
 
 package `in`.tflite.utils
 
+import `in`.backgroundcamera.toBitmap
 import `in`.tflite.Classifier
 import `in`.tflite.TFLiteLPDetectionAPIModel
 import `in`.tflite.TFLiteVehicleDetectionAPIModel
@@ -31,9 +32,7 @@ import kotlin.math.roundToInt
 
 class CameraPreviewAnalyzer(context: @NotNull Context,
                             private val listener: ObjectOfInterestListener,
-                            private val screenRotation: Int,
-                            private val height: Int,
-                            private val width: Int) :
+                            private val screenRotation: Int) :
     ImageAnalysis.Analyzer {
 
     interface ObjectOfInterestListener {
@@ -55,7 +54,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
     private val yuvBytes = arrayOfNulls<ByteArray>(3)
     private var yRowStride: Int = 0
 
-    private var imageConverter: Runnable? = null
+//    private var imageConverter: Runnable? = null
     private var postInferenceCallback: Runnable? = null
 
     private var sensorOrientation: Int? = null
@@ -95,6 +94,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
     }
 
     override fun analyze(image: ImageProxy) {
+        val bitmap = image.image?.toBitmap()
         ++timestamp
         val currTimestamp = timestamp
         listener.invalidateOverlay()
@@ -111,10 +111,10 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
             try {
                 // Initialize the storage bitmaps once when the resolution is known.
                 if (rgbBytes == null) {
-                    previewHeight = height
-                    previewWidth = width
+                    previewHeight = image.height
+                    previewWidth = image.width
                     rgbBytes = IntArray(previewWidth * previewHeight)
-                    onPreviewSizeChosen(Size(width, height), 90)
+                    onPreviewSizeChosen(Size(previewWidth, previewHeight), 90)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception!", e)
@@ -129,22 +129,25 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
             yuvBytes[0] = bytes
             yRowStride = previewWidth
 
-            imageConverter = Runnable {
-                ImageUtils.convertYUV420SPToARGB8888(bytes, previewWidth, previewHeight, rgbBytes)
-            }
+//            imageConverter = Runnable {
+//                ImageUtils.convertYUV420SPToARGB8888(bytes, previewWidth, previewHeight, rgbBytes)
+//            }
 
             postInferenceCallback = Runnable {
                 isProcessingFrame = false
             }
 
-            processImage(currTimestamp)
+            bitmap?.let {bmp ->
+                processImage(currTimestamp, bmp)
+            }
         } else {
             image.close()
         }
     }
 
-    private fun processImage(currTimestamp: Long) {
-        rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight)
+    private fun processImage(currTimestamp: Long, bitmap: Bitmap) {
+        rgbFrameBitmap = bitmap
+//        rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight)
         val canvas = Canvas(croppedBitmap)
         canvas.drawBitmap(rgbFrameBitmap, frameToCropTransform!!, null)
 
@@ -317,10 +320,10 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
         }
     }
 
-    private fun getRgbBytes(): IntArray? {
-        imageConverter?.run()
-        return rgbBytes
-    }
+//    private fun getRgbBytes(): IntArray? {
+//        imageConverter?.run()
+//        return rgbBytes
+//    }
 
     private fun readyForNextImage() {
         postInferenceCallback?.run()

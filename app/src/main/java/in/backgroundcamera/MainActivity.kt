@@ -133,9 +133,7 @@ class MainActivity : AppCompatActivity() {
         cameraPreviewCallback = CameraPreviewAnalyzer(
             this,
             objectListener,
-            getScreenOrientation(),
-            preview.attachedSurfaceResolution?.height ?: 0,
-            preview.attachedSurfaceResolution?.width ?: 0
+            getScreenOrientation()
         )
 
         val imageAnalyzer = ImageAnalysis.Builder()
