@@ -14,8 +14,11 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
 
@@ -31,19 +34,21 @@ class MainActivity : AppCompatActivity() {
 
     var isRecording = false
 
-    private val videoCaptureConfig = VideoCaptureConfig.Builder().setVideoFrameRate(30).build()
-    val videoCapture = VideoCapture(videoCaptureConfig)
+    private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
 
-    private val timer = object : CountDownTimer(10000, 1000) {
-        override fun onTick(millisUntilFinished: Long) {
-            timerText.text = (millisUntilFinished / 1000).toString()
-        }
+//    private val videoCaptureConfig = VideoCaptureConfig.Builder().setVideoFrameRate(30).build()
+//    val videoCapture = VideoCapture(videoCaptureConfig)
 
-        override fun onFinish() {
-            timerText.text = (0).toString()
-            videoCapture.stopRecording()
-        }
-    }
+//    private val timer = object : CountDownTimer(10000, 1000) {
+//        override fun onTick(millisUntilFinished: Long) {
+//            timerText.text = (millisUntilFinished / 1000).toString()
+//        }
+//
+//        override fun onFinish() {
+//            timerText.text = (0).toString()
+//            videoCapture.stopRecording()
+//        }
+//    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,19 +56,32 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         if (allPermissionsGranted()) {
-            viewFinder.post { startCamera() }
+            cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+            cameraProviderFuture.addListener(Runnable {
+                val cameraProvider = cameraProviderFuture.get()
+                bindPreview(cameraProvider)
+            }, ContextCompat.getMainExecutor(this))
         } else {
             ActivityCompat.requestPermissions(
                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
             )
         }
-        val cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
-        viewFinder.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            updateTransform()
-        }
     }
 
-    private fun startCamera() {
+    fun bindPreview(cameraProvider : ProcessCameraProvider) {
+        var preview : Preview = Preview.Builder()
+            .build()
+
+        var cameraSelector : CameraSelector = CameraSelector.Builder()
+            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+            .build()
+
+        preview.setSurfaceProvider(previewView.createSurfaceProvider())
+
+        var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview)
+    }
+
+    /*private fun startCamera() {
         val previewConfig = PreviewConfig.Builder().apply {
             setTargetAspectRatio(Rational(1, 1))
             setTargetResolution(Size(640, 640))
@@ -96,9 +114,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         CameraX.bindToLifecycle(this, videoCapture)
-    }
+    }*/
 
-    private fun startRecording(videoCapture: VideoCapture) {
+    /*private fun startRecording(videoCapture: VideoCapture) {
         val file = File(externalMediaDirs.first(), "${System.currentTimeMillis()}.mp4")
         videoCapture.startRecording(file,
             object : VideoCapture.OnVideoSavedListener {
@@ -142,14 +160,18 @@ class MainActivity : AppCompatActivity() {
 
         // Finally, apply transformations to our TextureView
         viewFinder.setTransform(matrix)
-    }
+    }*/
 
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults: IntArray
     ) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-                viewFinder.post { startCamera() }
+                cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+                cameraProviderFuture.addListener(Runnable {
+                    val cameraProvider = cameraProviderFuture.get()
+                    bindPreview(cameraProvider)
+                }, ContextCompat.getMainExecutor(this))
             } else {
                 Toast.makeText(
                     this,

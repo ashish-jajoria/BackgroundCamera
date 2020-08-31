@@ -19,13 +19,13 @@
         android:id="@+id/imageView"
         android:layout_width="640px"
         android:layout_height="640px"
-        app:layout_constraintBottom_toTopOf="@+id/viewFinder"
+        app:layout_constraintBottom_toTopOf="@+id/previewView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/timerText" />
 
-    <TextureView
-        android:id="@+id/viewFinder"
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
         android:layout_width="640px"
         android:layout_height="640px"
         app:layout_constraintBottom_toTopOf="@+id/capture_button"
