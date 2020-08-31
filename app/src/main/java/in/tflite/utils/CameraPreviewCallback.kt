@@ -1,7 +1,11 @@
 @file:Suppress("DEPRECATION")
 
-package com.nayan.nayanindia.tflite.utils;
+package `in`.tflite.utils
 
+import `in`.tflite.Classifier
+import `in`.tflite.TFLiteLPDetectionAPIModel
+import `in`.tflite.TFLiteVehicleDetectionAPIModel
+import `in`.tflite.model.SubmitLpResponse
 import android.content.Context
 import android.graphics.*
 import android.hardware.Camera
@@ -11,10 +15,6 @@ import com.google.gson.Gson
 import com.loopj.android.http.AsyncHttpResponseHandler
 import com.loopj.android.http.RequestParams
 import com.loopj.android.http.SyncHttpClient
-import com.nayan.nayanindia.models.SubmitLpResponse
-import com.nayan.nayanindia.tflite.Classifier
-import com.nayan.nayanindia.tflite.TFLiteLPDetectionAPIModel
-import com.nayan.nayanindia.tflite.TFLiteVehicleDetectionAPIModel
 import cz.msebera.android.httpclient.Header
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -24,6 +24,7 @@ import org.apache.commons.io.IOUtils
 import org.jetbrains.annotations.NotNull
 import timber.log.Timber
 import java.io.File
+import kotlin.math.roundToInt
 
 
 class CameraPreviewCallback(context: @NotNull Context,
@@ -256,7 +257,7 @@ class CameraPreviewCallback(context: @NotNull Context,
                 override fun onSuccess(statusCode: Int, headers: Array<out Header>?,
                                        responseBody: ByteArray?) {
                     val response = IOUtils.toString(responseBody)
-                    val lpResponse = Gson().fromJson<SubmitLpResponse>(response, SubmitLpResponse::class.java)
+                    val lpResponse = Gson().fromJson(response, SubmitLpResponse::class.java)
                     Timber.d("LP Number ${lpResponse.result}" + "( ${lpResponse.result})")
                     success = true
                     val lpResult = lpResponse.result

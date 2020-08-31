@@ -16,9 +16,10 @@ limitations under the License.
 package in.tflite.customview;
 
 
-import com.nayan.nayanindia.tflite.Classifier;
 
 import java.util.List;
+
+import in.tflite.Classifier;
 
 public interface ResultsView {
     public void setResults(final List<Classifier.Recognition> results);

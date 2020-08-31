@@ -28,14 +28,14 @@ import android.text.TextUtils;
 import android.util.Pair;
 import android.util.TypedValue;
 
-import com.nayan.nayanindia.tflite.Classifier;
-import com.nayan.nayanindia.tflite.env.BorderedText;
-import com.nayan.nayanindia.tflite.env.ImageUtils;
-import com.nayan.nayanindia.tflite.env.Logger;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+
+import in.tflite.Classifier;
+import in.tflite.env.BorderedText;
+import in.tflite.env.ImageUtils;
+import in.tflite.env.Logger;
 
 /** A tracker that handles non-max suppression and matches existing objects to new detections. */
 public class MultiBoxTracker {

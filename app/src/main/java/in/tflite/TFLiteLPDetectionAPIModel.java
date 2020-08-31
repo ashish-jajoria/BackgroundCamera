@@ -17,9 +17,6 @@ import android.graphics.Bitmap;
 import android.graphics.RectF;
 import android.os.Trace;
 
-import com.nayan.nayanindia.models.LpProbs;
-import com.nayan.nayanindia.tflite.env.Logger;
-
 import org.tensorflow.lite.Interpreter;
 
 import java.io.BufferedReader;
@@ -39,6 +36,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Vector;
+
+import in.tflite.env.Logger;
+import in.tflite.model.LpProbs;
 
 /**
  * Wrapper for frozen detection models trained using the Tensorflow Object Detection API:
