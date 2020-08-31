@@ -8,7 +8,6 @@ import `in`.tflite.TFLiteVehicleDetectionAPIModel
 import `in`.tflite.model.SubmitLpResponse
 import android.content.Context
 import android.graphics.*
-import android.hardware.Camera
 import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
@@ -125,7 +124,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
             isProcessingFrame = true
             val buffer = image.planes[0].buffer
             val bytes = buffer.toByteArray()
-
+            image.close()
 
             yuvBytes[0] = bytes
             yRowStride = previewWidth
@@ -139,6 +138,8 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
             }
 
             processImage(currTimestamp)
+        } else {
+            image.close()
         }
     }
 

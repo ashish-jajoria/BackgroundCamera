@@ -134,8 +134,8 @@ class MainActivity : AppCompatActivity() {
             this,
             objectListener,
             getScreenOrientation(),
-            previewView.height,
-            previewView.width
+            preview.attachedSurfaceResolution?.height ?: 0,
+            preview.attachedSurfaceResolution?.width ?: 0
         )
 
         val imageAnalyzer = ImageAnalysis.Builder()
