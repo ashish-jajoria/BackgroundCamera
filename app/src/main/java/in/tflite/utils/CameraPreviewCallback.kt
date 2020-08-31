@@ -11,6 +11,8 @@ import android.graphics.*
 import android.hardware.Camera
 import android.os.SystemClock
 import android.util.Log
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import com.google.gson.Gson
 import com.loopj.android.http.AsyncHttpResponseHandler
 import com.loopj.android.http.RequestParams
@@ -24,13 +26,16 @@ import org.apache.commons.io.IOUtils
 import org.jetbrains.annotations.NotNull
 import timber.log.Timber
 import java.io.File
+import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 
 
-class CameraPreviewCallback(context: @NotNull Context,
-                            private val listener: @NotNull ObjectOfInterestListener,
-                            private val screenRotation: Int) :
-        Camera.PreviewCallback {
+class CameraPreviewAnalyzer(context: @NotNull Context,
+                            private val listener: ObjectOfInterestListener,
+                            private val screenRotation: Int,
+                            private val height: Int,
+                            private val width: Int) :
+    ImageAnalysis.Analyzer {
 
     interface ObjectOfInterestListener {
         fun onObjectDetected(label: String, confidence: Int, mappedRecognitions: MutableList<Classifier.Recognition>, currTimestamp: Long)
@@ -83,7 +88,14 @@ class CameraPreviewCallback(context: @NotNull Context,
 
     private var canDetect: Boolean = true
 
-    override fun onPreviewFrame(bytes: ByteArray, camera: Camera) {
+    private fun ByteBuffer.toByteArray(): ByteArray {
+        rewind()    // Rewind the buffer to zero
+        val data = ByteArray(remaining())
+        get(data)   // Copy the buffer into a byte array
+        return data // Return the byte array
+    }
+
+    override fun analyze(image: ImageProxy) {
         ++timestamp
         val currTimestamp = timestamp
         listener.invalidateOverlay()
@@ -100,11 +112,10 @@ class CameraPreviewCallback(context: @NotNull Context,
             try {
                 // Initialize the storage bitmaps once when the resolution is known.
                 if (rgbBytes == null) {
-                    val previewSize = camera.parameters.previewSize
-                    previewHeight = previewSize.height
-                    previewWidth = previewSize.width
+                    previewHeight = height
+                    previewWidth = width
                     rgbBytes = IntArray(previewWidth * previewHeight)
-                    onPreviewSizeChosen(Size(previewSize.width, previewSize.height), 90)
+                    onPreviewSizeChosen(Size(width, height), 90)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception!", e)
@@ -112,6 +123,10 @@ class CameraPreviewCallback(context: @NotNull Context,
             }
 
             isProcessingFrame = true
+            val buffer = image.planes[0].buffer
+            val bytes = buffer.toByteArray()
+
+
             yuvBytes[0] = bytes
             yRowStride = previewWidth
 
@@ -120,13 +135,11 @@ class CameraPreviewCallback(context: @NotNull Context,
             }
 
             postInferenceCallback = Runnable {
-                camera.addCallbackBuffer(bytes)
                 isProcessingFrame = false
             }
 
             processImage(currTimestamp)
         }
-        //}
     }
 
     private fun processImage(currTimestamp: Long) {
