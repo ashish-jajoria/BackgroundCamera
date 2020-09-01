@@ -9,13 +9,12 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
+import android.util.Size
 import android.view.Surface
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -61,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         override fun onObjectOfInterestDetected() {
             trackingOverlay.visibility = View.VISIBLE
             detectionHandler.postDelayed(detectionRunnable, 1_000)
-            cameraPreviewCallback?.canDetectObjects(false)
         }
 
         override fun invalidateOverlay() {
@@ -73,7 +71,6 @@ class MainActivity : AppCompatActivity() {
             previewHeight: Int,
             sensorOrientation: Int
         ) {
-            trackingOverlay.addCallback { canvas -> tracker.draw(canvas) }
             tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation)
         }
 
@@ -128,7 +125,14 @@ class MainActivity : AppCompatActivity() {
             .requireLensFacing(CameraSelector.LENS_FACING_BACK)
             .build()
 
+        val cameraControl = CameraX.getCameraWithCameraSelector(cameraSelector) // you can set it to front
+        val meteringPoint = previewView.meteringPointFactory.createPoint(previewView.width/2f, previewView.height/2f, 1f)
+        val action = FocusMeteringAction.Builder(meteringPoint).build()
+        cameraControl.cameraControl.startFocusAndMetering(action)
+
         preview.setSurfaceProvider(previewView.createSurfaceProvider())
+
+        trackingOverlay.addCallback { canvas -> tracker.draw(canvas) }
 
         cameraPreviewCallback = CameraPreviewAnalyzer(
             this,
@@ -137,6 +141,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val imageAnalyzer = ImageAnalysis.Builder()
+            .setTargetResolution(Size(1920, 1080))
             .build()
             .also {
                 cameraPreviewCallback?.let { analyzer ->
@@ -145,6 +150,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview, imageAnalyzer)
+
     }
 
     private fun getScreenOrientation():Int {

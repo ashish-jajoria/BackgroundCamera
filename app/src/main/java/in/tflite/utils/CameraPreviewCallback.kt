@@ -10,23 +10,22 @@ import `in`.tflite.model.SubmitLpResponse
 import android.content.Context
 import android.graphics.*
 import android.os.SystemClock
-import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.gson.Gson
-import com.loopj.android.http.AsyncHttpResponseHandler
-import com.loopj.android.http.RequestParams
-import com.loopj.android.http.SyncHttpClient
-import cz.msebera.android.httpclient.Header
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.apache.commons.io.IOUtils
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.jetbrains.annotations.NotNull
 import timber.log.Timber
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 
@@ -43,6 +42,8 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
         fun onLPDetected(vehicleFile: File, lpFile: File, lpNumber: String?)
     }
 
+    private val client = OkHttpClient.Builder().callTimeout(10, TimeUnit.SECONDS).build()
+
     private var timestamp: Long = 0
 
     private var previewWidth = 0
@@ -50,11 +51,6 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
 
     private var isProcessingFrame = false
 
-    private var rgbBytes: IntArray? = null
-    private val yuvBytes = arrayOfNulls<ByteArray>(3)
-    private var yRowStride: Int = 0
-
-//    private var imageConverter: Runnable? = null
     private var postInferenceCallback: Runnable? = null
 
     private var sensorOrientation: Int? = null
@@ -64,11 +60,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
     private var lastProcessingTimeMs: Long = 0
 
     private var frameToCropTransform: Matrix? = null
-    private var cropToFrameTransform: Matrix? = null
-
-    private var frameIndex: Int = 0
-
-    private var computingDetection: Boolean = false
+    private var cropToFrameTransform: Matrix? = Matrix()
 
     private var vehicleClassifier: Classifier = TFLiteVehicleDetectionAPIModel.create(
             context.assets,
@@ -84,7 +76,6 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
             TF_OD_API_INPUT_SIZE,
             false)
 
-    private var canDetect: Boolean = true
 
     private fun ByteBuffer.toByteArray(): ByteArray {
         rewind()    // Rewind the buffer to zero
@@ -94,74 +85,57 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
     }
 
     override fun analyze(image: ImageProxy) {
-        val bitmap = image.image?.toBitmap()
         ++timestamp
         val currTimestamp = timestamp
         listener.invalidateOverlay()
 
-        /* if (canDetect) {*/
-        // Process every 10th Frame
-        frameIndex += 1
-        if (frameIndex % 10 == 0) {
-            if (isProcessingFrame) {
-                Log.w(TAG, "Dropping frame!")
-                return
-            }
-
-            try {
-                // Initialize the storage bitmaps once when the resolution is known.
-                if (rgbBytes == null) {
-                    previewHeight = image.height
-                    previewWidth = image.width
-                    rgbBytes = IntArray(previewWidth * previewHeight)
-                    onPreviewSizeChosen(Size(previewWidth, previewHeight), 90)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception!", e)
-                return
-            }
-
-            isProcessingFrame = true
-            val buffer = image.planes[0].buffer
-            val bytes = buffer.toByteArray()
+        if (isProcessingFrame) {
+            Timber.d("Dropping frame!")
             image.close()
+            return
+        }
 
-            yuvBytes[0] = bytes
-            yRowStride = previewWidth
-
-//            imageConverter = Runnable {
-//                ImageUtils.convertYUV420SPToARGB8888(bytes, previewWidth, previewHeight, rgbBytes)
-//            }
-
-            postInferenceCallback = Runnable {
-                isProcessingFrame = false
-            }
-
-            bitmap?.let {bmp ->
-                processImage(currTimestamp, bmp)
-            }
-        } else {
+        try {
+            // Initialize the storage bitmaps once when the resolution is known.
+            previewHeight = image.height
+            previewWidth = image.width
+            onPreviewSizeChosen(Size(previewWidth, previewHeight), 90)
+        } catch (e: Exception) {
+            Timber.e(e)
             image.close()
+            return
+        }
+
+        val bitmap = image.image?.toBitmap()
+
+        isProcessingFrame = true
+        image.close()
+
+        postInferenceCallback = Runnable {
+            isProcessingFrame = false
+        }
+
+        bitmap?.let {bmp ->
+            processImage(currTimestamp, bmp)
         }
     }
 
     private fun processImage(currTimestamp: Long, bitmap: Bitmap) {
         rgbFrameBitmap = bitmap
-//        rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight)
-        val canvas = Canvas(croppedBitmap)
-        canvas.drawBitmap(rgbFrameBitmap, frameToCropTransform!!, null)
+        val mainCanvas = Canvas(croppedBitmap)
+        frameToCropTransform?.let {
+            mainCanvas.drawBitmap(rgbFrameBitmap, it, null)
+        }
 
-        Log.d("start time:", System.currentTimeMillis().toString())
-        //ImageUtils.saveBitmap(croppedBitmap, currTimestamp)
+        Timber.d("start time: ${System.currentTimeMillis()}")
         GlobalScope.launch {
-            var maxConfidence = 0.0f
             var vehicleFile: File? = null
             var lpFile: File? = null
             val results = withContext(Dispatchers.IO) {
                 val startTime = SystemClock.uptimeMillis()
                 val results = vehicleClassifier.recognizeImage(croppedBitmap)
                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
-                Log.v(TAG, String.format("Detect: %s", results))
+                Timber.d(String.format("Detect: %s", results))
                 results
             }
 
@@ -186,7 +160,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
                                 val startTime = SystemClock.uptimeMillis()
                                 val lpResults = lpClassifier.recognizeImage(recognizedBitmap)
                                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
-                                Log.v(TAG, String.format("Detect: %s", results))
+                                Timber.d(String.format("Detect: %s", results))
                                 lpResults
                             }
 
@@ -220,25 +194,29 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
 
             vehicleFile?.let { f1 ->
                 lpFile?.let { f2 ->
-                    uploadLpImage(f1, f2)
+                    val lpResult = uploadLpImage(f2)
+                    withContext(Dispatchers.Main) {
+                        listener.onLPDetected(f1, f2, lpResult)
+                    }
                 }
             }
 
-            Log.d("end time:", System.currentTimeMillis().toString())
+            Timber.d("end time: ${System.currentTimeMillis()}")
 
-            val maxResult = results.maxBy { it.confidence }
-            maxResult?.let {
-                listener.onObjectDetected(
-                        it.title,
-                        (it.confidence * 100).roundToInt(),
-                        mappedRecognitions,
-                        currTimestamp
-                )
-            }
 
-            if (isShowingCar(results) && vehicleFile != null && lpFile != null) {
-                withContext(Dispatchers.Main) {
-                    listener.onObjectOfInterestDetected()
+            if (isShowingCar(results)) {
+                val maxResult = results.maxBy { it.confidence }
+
+                maxResult?.let {
+                    withContext(Dispatchers.Main) {
+                        listener.onObjectDetected(
+                            it.title,
+                            (it.confidence * 100).roundToInt(),
+                            mappedRecognitions,
+                            currTimestamp
+                        )
+                        listener.onObjectOfInterestDetected()
+                    }
                 }
             }
 
@@ -258,43 +236,37 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
         }
     }
 
-    private suspend fun uploadLpImage(vehicleFile: File, lpFile: File): Boolean = withContext(Dispatchers.IO) {
-        try {
+    private suspend fun uploadLpImage(lpFile: File): String? = withContext(Dispatchers.IO) {
             val uploadUrl = "http://35.229.238.216/ocr/read_lp"
-            val params = RequestParams()
-            params.put("image", lpFile)
-            val client = SyncHttpClient()
-            client.responseTimeout = 10 * 60 * 1000
-            client.connectTimeout = 10 * 60 * 1000
-            client.addHeader("api-key", "v4RjT5ZwLTWGH2xHceTLH8w5")
 
-            var success = true
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("image", lpFile.name, lpFile.asRequestBody())
+                .build()
 
-            client.post(uploadUrl, params, object : AsyncHttpResponseHandler() {
-                override fun onSuccess(statusCode: Int, headers: Array<out Header>?,
-                                       responseBody: ByteArray?) {
-                    val response = IOUtils.toString(responseBody)
-                    val lpResponse = Gson().fromJson(response, SubmitLpResponse::class.java)
-                    Timber.d("LP Number ${lpResponse.result}" + "( ${lpResponse.result})")
-                    success = true
+            val request = Request.Builder().url(uploadUrl).addHeader("api-key", "v4RjT5ZwLTWGH2xHceTLH8w5").post(requestBody).build()
+
+            val response = client.newCall(request).execute()
+
+            if (response.isSuccessful) {
+                val responseBody = response.body
+                if (responseBody == null) {
+                    Timber.e("Upload LP:: Could not upload ${lpFile.name}")
+                    return@withContext null
+                } else {
+                    val lpResponse = Gson().fromJson(responseBody.string(), SubmitLpResponse::class.java)
+                    Timber.d("LP Number ${lpResponse.result} (${lpResponse.result})")
                     val lpResult = lpResponse.result
-                    if (!lpResult.isNullOrEmpty()) {
-                        listener.onLPDetected(vehicleFile, lpFile, lpResult)
+                    if (lpResult.isNullOrEmpty()) {
+                        return@withContext null
+                    } else {
+                        return@withContext lpResult
                     }
                 }
-
-                override fun onFailure(statusCode: Int,
-                                       headers: Array<Header>,
-                                       responseBody: ByteArray, error: Throwable) {
-                    success = false
-                    Timber.e(error, "Upload LP:: Could no upload ${lpFile.name}")
-                }
-            })
-            success
-        } catch (e: Exception) {
-            Timber.d("Could not upload file")
-            false
-        }
+            } else {
+                Timber.e("Upload LP:: Could not upload ${lpFile.name}")
+                return@withContext null
+            }
     }
 
     private fun getLpPoints(location: RectF, rect: RectF): RectF {
@@ -314,17 +286,6 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
         }
     }
 
-    private fun isShowingCar(predictions: List<Classifier.Recognition>): Boolean {
-        return predictions.any {
-            it.confidence > 0.7
-        }
-    }
-
-//    private fun getRgbBytes(): IntArray? {
-//        imageConverter?.run()
-//        return rgbBytes
-//    }
-
     private fun readyForNextImage() {
         postInferenceCallback?.run()
     }
@@ -336,7 +297,6 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
 
         sensorOrientation = rotation - screenRotation
 
-        rgbFrameBitmap = Bitmap.createBitmap(previewWidth, previewHeight, Bitmap.Config.ARGB_8888)
         croppedBitmap = Bitmap.createBitmap(
                 TF_OD_API_INPUT_SIZE, TF_OD_API_INPUT_SIZE, Bitmap.Config.ARGB_8888)
 
@@ -348,14 +308,15 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
                 sensorOrientation!!,
                 MAINTAIN_ASPECT)
 
-        cropToFrameTransform = Matrix()
         frameToCropTransform?.invert(cropToFrameTransform)
 
         listener.addOverlayCallbacks(previewWidth, previewHeight, sensorOrientation!!)
     }
 
-    fun canDetectObjects(toSet: Boolean) {
-        canDetect = toSet
+    private fun isShowingCar(predictions: List<Classifier.Recognition>): Boolean {
+        return predictions.any {
+            it.confidence > 0.7
+        }
     }
 
     companion object {
@@ -366,7 +327,6 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
         private const val TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap1.txt"
         private const val MINIMUM_CONFIDENCE_SCORE = 0.5f
 
-        private const val TAG = "CameraPreviewCallback"
         private const val MAINTAIN_ASPECT = false
 
 
