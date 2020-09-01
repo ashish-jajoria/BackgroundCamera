@@ -22,7 +22,9 @@ import android.graphics.RectF;
 import android.os.Trace;
 
 
+import org.tensorflow.lite.Delegate;
 import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.gpu.GpuDelegate;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -82,6 +84,7 @@ public class TFLiteVehicleDetectionAPIModel implements Classifier {
   private ByteBuffer imgData;
 
   private Interpreter tfLite;
+  private static GpuDelegate delegate;
 
   private TFLiteVehicleDetectionAPIModel() {}
 
@@ -110,8 +113,10 @@ public class TFLiteVehicleDetectionAPIModel implements Classifier {
       final String modelFilename,
       final String labelFilename,
       final int inputSize,
-      final boolean isQuantized)
+      final boolean isQuantized,
+      final GpuDelegate gpuDelegate)
       throws IOException {
+    delegate = gpuDelegate;
     final TFLiteVehicleDetectionAPIModel d = new TFLiteVehicleDetectionAPIModel();
 
     String actualFilename = labelFilename.split("file:///android_asset/")[1];
@@ -127,7 +132,8 @@ public class TFLiteVehicleDetectionAPIModel implements Classifier {
     d.inputSize = inputSize;
 
     try {
-      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename));
+      Interpreter.Options options = (new Interpreter.Options()).addDelegate(delegate);
+      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename), options);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -241,7 +247,9 @@ public class TFLiteVehicleDetectionAPIModel implements Classifier {
   }
 
   @Override
-  public void close() {}
+  public void close() {
+    delegate.close();
+  }
 
   public void setNumThreads(int num_threads) {
     if (tfLite != null) tfLite.setNumThreads(num_threads);

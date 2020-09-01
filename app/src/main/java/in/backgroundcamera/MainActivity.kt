@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
+import timber.log.Timber
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
             mappedRecognitions: MutableList<Classifier.Recognition>,
             currTimestamp: Long
         ) {
+            Timber.e("Vehicle Detected")
             tracker.trackResults(mappedRecognitions, currTimestamp)
             trackingOverlay.postInvalidate()
         }

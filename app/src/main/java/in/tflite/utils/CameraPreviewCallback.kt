@@ -22,6 +22,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import org.jetbrains.annotations.NotNull
+import org.tensorflow.lite.gpu.GpuDelegate
 import timber.log.Timber
 import java.io.File
 import java.nio.ByteBuffer
@@ -67,7 +68,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
             TF_OD_API_VEHICLE_MODEL_FILE,
             TF_OD_API_LABELS_FILE,
             TF_OD_API_INPUT_SIZE,
-            TF_OD_API_IS_QUANTIZED)
+            TF_OD_API_IS_QUANTIZED, GpuDelegate())
 
     private var lpClassifier: Classifier = TFLiteLPDetectionAPIModel.create(
             context.assets,
@@ -135,7 +136,8 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
                 val startTime = SystemClock.uptimeMillis()
                 val results = vehicleClassifier.recognizeImage(croppedBitmap)
                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
-                Timber.d(String.format("Detect: %s", results))
+                Timber.e(String.format("Detect: %s", results))
+                Timber.e("Time Taken $lastProcessingTimeMs")
                 results
             }
 
@@ -161,6 +163,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
                                 val lpResults = lpClassifier.recognizeImage(recognizedBitmap)
                                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
                                 Timber.d(String.format("Detect: %s", results))
+                                Timber.e("Time Taken LP $lastProcessingTimeMs")
                                 lpResults
                             }
 
@@ -205,6 +208,7 @@ class CameraPreviewAnalyzer(context: @NotNull Context,
 
 
             if (isShowingCar(results)) {
+                Timber.e("Vehicle Detected from callback")
                 val maxResult = results.maxBy { it.confidence }
 
                 maxResult?.let {
