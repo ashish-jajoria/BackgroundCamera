@@ -16,6 +16,13 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/shouldAnalyze"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:checked="true"/>
+
     <LinearLayout
         android:layout_width="150dp"
         android:layout_height="wrap_content"

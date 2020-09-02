@@ -105,6 +105,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         tracker = MultiBoxTracker(this)
 
+        shouldAnalyze.setOnCheckedChangeListener { button, _ ->  cameraPreviewCallback?.shouldAnalyze = button.isChecked}
+
         if (allPermissionsGranted()) {
             cameraProviderFuture = ProcessCameraProvider.getInstance(this)
             cameraProviderFuture.addListener({

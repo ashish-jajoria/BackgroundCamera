@@ -132,8 +132,8 @@ public class TFLiteVehicleDetectionAPIModel implements Classifier {
     d.inputSize = inputSize;
 
     try {
-      Interpreter.Options options = (new Interpreter.Options()).addDelegate(delegate);
-      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename), options);
+      //Interpreter.Options options = (new Interpreter.Options()).addDelegate(delegate);
+      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
