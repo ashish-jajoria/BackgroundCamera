@@ -9,6 +9,7 @@ import `in`.tflite.TFLiteVehicleDetectionAPIModel
 import `in`.tflite.model.SubmitLpResponse
 import android.content.Context
 import android.graphics.*
+import android.os.Message
 import android.os.SystemClock
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -44,6 +45,7 @@ class CameraPreviewAnalyzer(
             mappedRecognitions: MutableList<Classifier.Recognition>,
             currTimestamp: Long
         )
+        fun updateStatus(message: String)
 
         fun onObjectOfInterestDetected()
         fun invalidateOverlay()
@@ -144,6 +146,7 @@ class CameraPreviewAnalyzer(
             var lpFile: File? = null
             val results = withContext(Dispatchers.IO) {
                 Timber.e("Entered Vehicle")
+                listener.updateStatus("Detecting Vehicle")
                 val startTime = SystemClock.uptimeMillis()
                 val results = vehicleClassifier.recognizeImage(croppedBitmap)
                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
@@ -178,6 +181,7 @@ class CameraPreviewAnalyzer(
                         recognizedBitmap?.let {
                             val lpResults = withContext(Dispatchers.IO) {
                                 Timber.e("Entered LP")
+                                listener.updateStatus("Detecting LP")
                                 val startTime = SystemClock.uptimeMillis()
                                 val lpResults = lpClassifier.recognizeImage(recognizedBitmap)
                                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
@@ -217,12 +221,14 @@ class CameraPreviewAnalyzer(
 
             vehicleFile?.let { f1 ->
                 lpFile?.let { f2 ->
+                    listener.updateStatus("Detecting LP Number")
                     val lpResult = uploadLpImage(f2)
                     Timber.e("Exit LP Upload")
                     withContext(Dispatchers.Main) {
                         Timber.e("Entered show lp")
                         listener.onLPDetected(f1, f2, lpResult)
                     }
+                    listener.updateStatus("")
                     Timber.e("Exit show LP")
                 }
             }

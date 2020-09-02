@@ -14,49 +14,56 @@
     <in.tflite.customview.OverlayView
         android:id="@+id/trackingOverlay"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent" />
 
     <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/shouldAnalyze"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:checked="true"/>
+        android:checked="true"
+        android:padding="16dp" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="#4DFF8585"
+        android:textColor="@android:color/white" />
 
     <LinearLayout
+        android:id="@+id/detectedVehicleLayout"
         android:layout_width="150dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="10dp"
-        android:id="@+id/detectedVehicleLayout"
-        android:background="#EEEEEE"
         android:layout_alignParentEnd="true"
-        android:visibility="visible"
+        android:background="#EEEEEE"
         android:clickable="true"
         android:focusable="true"
-        >
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="visible">
+
         <ImageView
+            android:id="@+id/vehicleImage"
             android:layout_width="match_parent"
             android:layout_height="150dp"
-            android:id="@+id/vehicleImage"
-            android:layout_marginBottom="10dp"
-            />
+            android:layout_marginBottom="10dp" />
+
         <ImageView
+            android:id="@+id/lpImage"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:layout_gravity="center_horizontal"
-            android:id="@+id/lpImage"
-            android:scaleType="fitXY"
-            />
+            android:scaleType="fitXY" />
 
         <TextView
+            android:id="@+id/lpNumberTv"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:padding="5dp"
             android:textColor="@android:color/black"
-            android:textStyle="bold"
-            android:gravity="center"
             android:textSize="20sp"
-            android:id="@+id/lpNumberTv" />
+            android:textStyle="bold" />
     </LinearLayout>
 </RelativeLayout>

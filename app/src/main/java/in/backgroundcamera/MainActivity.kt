@@ -59,6 +59,10 @@ class MainActivity : AppCompatActivity() {
             trackingOverlay.postInvalidate()
         }
 
+        override fun updateStatus(message: String) {
+            status.text = message
+        }
+
         override fun onObjectOfInterestDetected() {
             trackingOverlay.visibility = View.VISIBLE
             detectionHandler.postDelayed(detectionRunnable, 1_000)
