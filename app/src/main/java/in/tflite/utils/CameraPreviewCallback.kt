@@ -14,10 +14,7 @@ import android.os.SystemClock
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.gson.Gson
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -50,7 +47,7 @@ class CameraPreviewAnalyzer(
         fun onObjectOfInterestDetected()
         fun invalidateOverlay()
         fun addOverlayCallbacks(previewWidth: Int, previewHeight: Int, sensorOrientation: Int)
-        fun onLPDetected(vehicleFile: File, lpFile: File, lpNumber: String?)
+        fun onLPDetected(vehicleFile: File?, lpFile: File?, lpNumber: String?)
     }
 
     var shouldAnalyze: Boolean = true
@@ -144,7 +141,7 @@ class CameraPreviewAnalyzer(
             Timber.e("Entered Global")
             var vehicleFile: File? = null
             var lpFile: File? = null
-            val results = withContext(Dispatchers.IO) {
+            var results = withContext(Dispatchers.IO) {
                 Timber.e("Entered Vehicle")
                 listener.updateStatus("Detecting Vehicle")
                 val startTime = SystemClock.uptimeMillis()
@@ -152,7 +149,7 @@ class CameraPreviewAnalyzer(
                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
                 Timber.e(String.format("Detect: %s", results))
                 Timber.e("Time Taken $lastProcessingTimeMs")
-                results.filter { recognition -> recognition.confidence > 0.7f }
+                results
             }
             Timber.e("Exit Vehicle")
 
@@ -165,15 +162,23 @@ class CameraPreviewAnalyzer(
 
             val mappedRecognitions = mutableListOf<Classifier.Recognition>()
 
+            results = rankImages(results)
             for (result in results) {
                 val location = result.location
                 if (location != null && result.confidence >= MINIMUM_CONFIDENCE_SCORE) {
                     result.location?.let { rect ->
                         val recognizedBitmap =
                             getRecognizedBitmap(Bitmap.createBitmap(croppedBitmap), rect)
+                            //getRecognizedBitmap(Bitmap.createBitmap(croppedBitmap), rect)
 
-                        /*FOR VEHICLE ONLY MODE
-                        canvas.drawRect(location, paint)
+                        //FOR VEHICLE ONLY MODE
+                        recognizedBitmap?.let {
+                            vehicleFile = ImageUtils.saveDetectedImage(it, "vehicle.jpg")
+                            withContext(Dispatchers.Main) {
+                                listener.onLPDetected(vehicleFile, null, null)
+                            }
+                        }
+                        /*canvas.drawRect(location, paint)
                         cropToFrameTransform!!.mapRect(location)
                         result.location = location
                         mappedRecognitions.add(result)*/
@@ -222,7 +227,7 @@ class CameraPreviewAnalyzer(
             vehicleFile?.let { f1 ->
                 lpFile?.let { f2 ->
                     listener.updateStatus("Detecting LP Number")
-                    val lpResult = uploadLpImage(f2)
+                    val lpResult = null //uploadLpImage(f2)
                     Timber.e("Exit LP Upload")
                     withContext(Dispatchers.Main) {
                         Timber.e("Entered show lp")
@@ -255,7 +260,23 @@ class CameraPreviewAnalyzer(
                 }
             }
 
+            withContext(Dispatchers.IO) {
+                delay(5_00)
+            }
             readyForNextImage()
+        }
+    }
+
+    private fun rankImages(results: List<Classifier.Recognition>): List<Classifier.Recognition> {
+        val result = results
+            .filter { r -> (r.location.height() / r.location.width()) > 0.8 }
+            .filter { r -> r.confidence > 0.8f }
+            .filter { r -> r.location.height() > 50 && r.location.width() > 50 }
+            .maxByOrNull { r -> r.location.width() * r.location.height() }
+        return if (result == null) {
+            emptyList()
+        } else {
+            listOf(result)
         }
     }
 
@@ -290,26 +311,31 @@ class CameraPreviewAnalyzer(
             Request.Builder().url(uploadUrl).addHeader("api-key", "v4RjT5ZwLTWGH2xHceTLH8w5")
                 .post(requestBody).build()
 
-        val response = client.newCall(request).execute()
+        try {
+            val response = client.newCall(request).execute()
 
-        if (response.isSuccessful) {
-            val responseBody = response.body
-            if (responseBody == null) {
-                Timber.e("Upload LP:: Could not upload ${lpFile.name}")
-                return@withContext null
-            } else {
-                val lpResponse =
-                    Gson().fromJson(responseBody.string(), SubmitLpResponse::class.java)
-                Timber.e("LP Number ${lpResponse.result} (${lpResponse.result})")
-                val lpResult = lpResponse.result
-                if (lpResult.isNullOrEmpty()) {
+            if (response.isSuccessful) {
+                val responseBody = response.body
+                if (responseBody == null) {
+                    Timber.e("Upload LP:: Could not upload ${lpFile.name}")
                     return@withContext null
                 } else {
-                    return@withContext lpResult
+                    val lpResponse =
+                        Gson().fromJson(responseBody.string(), SubmitLpResponse::class.java)
+                    Timber.e("LP Number ${lpResponse.result} (${lpResponse.result})")
+                    val lpResult = lpResponse.result
+                    if (lpResult.isNullOrEmpty()) {
+                        return@withContext null
+                    } else {
+                        return@withContext lpResult
+                    }
                 }
+            } else {
+                Timber.e("Upload LP:: Could not upload ${lpFile.name}")
+                return@withContext null
             }
-        } else {
-            Timber.e("Upload LP:: Could not upload ${lpFile.name}")
+        } catch (e: Exception) {
+            Timber.e(e)
             return@withContext null
         }
     }

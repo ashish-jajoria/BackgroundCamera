@@ -7,6 +7,7 @@ import `in`.tflite.utils.CameraPreviewAnalyzer
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Handler
 import android.util.Size
@@ -80,27 +81,40 @@ class MainActivity : AppCompatActivity() {
             tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation)
         }
 
-        override fun onLPDetected(vehicleFile: File, lpFile: File, lpNumber: String?) {
+        override fun onLPDetected(vehicleFile: File?, lpFile: File?, lpNumber: String?) {
             showDetectedVehicle(vehicleFile, lpFile, lpNumber)
         }
 
     }
 
-    private fun showDetectedVehicle(vehicleFile:File?, lpFile:File?, lpNumber:String?) {
-        if(!lpNumber.isNullOrEmpty()) {
-            val vehicle = ImageUtils.getSavedBitmap("vehicle")
-            val lp = ImageUtils.getSavedBitmap("lp_image")
-            if (vehicle != null && lp != null) {
-                vehicleImage.setImageBitmap(vehicle)
-                lpImage.setImageBitmap(lp)
-                lpNumberTv.text = lpNumber
-                vehicleFile?.delete()
-                lpFile?.delete()
-                detectedVehicleLayout.visibility = View.VISIBLE
-            } else {
-                detectedVehicleLayout.visibility = View.INVISIBLE
-            }
+    private fun showDetectedVehicle(vehicleFile: File?, lpFile: File?, lpNumber: String?) {
+//        if(!lpNumber.isNullOrEmpty()) {
+        var vehicle:Bitmap? = null
+        if (vehicleFile == null) {
+            vehicleImage.setImageBitmap(null)
+        } else {
+            vehicle = ImageUtils.getSavedBitmap("vehicle")
+            vehicleImage.setImageBitmap(vehicle)
         }
+
+        var lp:Bitmap? = null
+        if (lpFile == null) {
+            lpImage.setImageBitmap(null)
+        } else {
+            lp = ImageUtils.getSavedBitmap("lp_image")
+            lpImage.setImageBitmap(lp)
+        }
+
+        lpNumberTv.text = lpNumber ?: ""
+
+        if (vehicle != null && lp != null) {
+            vehicleFile?.delete()
+            lpFile?.delete()
+            detectedVehicleLayout.visibility = View.VISIBLE
+        } else {
+//            detectedVehicleLayout.visibility = View.INVISIBLE
+        }
+//        }
     }
 
 
