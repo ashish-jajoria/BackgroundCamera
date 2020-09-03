@@ -154,7 +154,7 @@ class CameraPreviewAnalyzer(
             }
             Timber.e("Exit Vehicle")
 
-            val cropCopyBitmap = Bitmap.createBitmap(croppedBitmap)
+            val cropCopyBitmap = Bitmap.createBitmap(rgbFrameBitmap).copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(cropCopyBitmap)
             val paint = Paint()
             paint.color = Color.RED
@@ -175,16 +175,18 @@ class CameraPreviewAnalyzer(
                     //FOR VEHICLE ONLY MODE
                     recognizedBitmap?.let {
                         vehicleFile = ImageUtils.saveDetectedImage(it, "vehicle.jpg")
-                        withContext(Dispatchers.Main) {
+                        /*withContext(Dispatchers.Main) {
                             listener.onLPDetected(vehicleFile, null, null)
-                        }
+                        }*/
 
                         val lpResults = withContext(Dispatchers.IO) {
                             Timber.e("Entered LP")
                             listener.updateStatus("Detecting LP")
+
                             val startTime = SystemClock.uptimeMillis()
                             val lpResults = lpClassifier.recognizeImage(recognizedBitmap)
                             lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
+
                             Timber.d(String.format("Detect: %s", results))
                             Timber.e("Time Taken LP $lastProcessingTimeMs")
                             lpResults
@@ -197,13 +199,10 @@ class CameraPreviewAnalyzer(
                             val maxResult = lpResults.first()
                             if (isValidLp(maxResult.location)) {
                                 canvas.drawRect(location, paint)
-//                                cropToFrameTransform!!.mapRect(location)
-//                                result.location = location
                                 mappedRecognitions.add(result)
 
                                 val lpLocation = getLpPoints(maxResult.location, location)
                                 canvas.drawRect(lpLocation, paint)
-//                                cropToFrameTransform!!.mapRect(lpLocation)
                                 maxResult.location = lpLocation
 
                                 val lpImage = getLpImage(lpLocation)
@@ -216,23 +215,6 @@ class CameraPreviewAnalyzer(
                     }
                 }
             }
-
-            vehicleFile?.let { f1 ->
-                lpFile?.let { f2 ->
-                    listener.updateStatus("Detecting LP Number")
-                    val lpResult = null //uploadLpImage(f2)
-                    Timber.e("Exit LP Upload")
-                    withContext(Dispatchers.Main) {
-                        Timber.e("Entered show lp")
-                        listener.onLPDetected(f1, f2, lpResult)
-                    }
-                    listener.updateStatus("")
-                    Timber.e("Exit show LP")
-                }
-            }
-
-            Timber.d("end time: ${System.currentTimeMillis()}")
-
 
             if (isShowingCar(results)) {
                 Timber.e("Vehicle Detected from callback")
@@ -252,6 +234,22 @@ class CameraPreviewAnalyzer(
                     Timber.e("Exit Draw")
                 }
             }
+
+            vehicleFile?.let { f1 ->
+                lpFile?.let { f2 ->
+                    listener.updateStatus("Detecting LP Number")
+                    val lpResult = uploadLpImage(f2)
+                    Timber.e("Exit LP Upload")
+                    withContext(Dispatchers.Main) {
+                        Timber.e("Entered show lp")
+                        listener.onLPDetected(f1, f2, lpResult)
+                    }
+                    listener.updateStatus("")
+                    Timber.e("Exit show LP")
+                }
+            }
+
+            Timber.d("end time: ${System.currentTimeMillis()}")
 
             withContext(Dispatchers.IO) {
                 delay(5_00)

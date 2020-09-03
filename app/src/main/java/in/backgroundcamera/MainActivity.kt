@@ -19,6 +19,7 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
@@ -39,16 +40,16 @@ class MainActivity : AppCompatActivity() {
             arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
     }
 
-    private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
+    private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var cameraExecutor: ExecutorService
-    private var cameraPreviewCallback:CameraPreviewAnalyzer? = null
-    private lateinit var tracker:MultiBoxTracker
+    private var cameraPreviewCallback: CameraPreviewAnalyzer? = null
+    private lateinit var tracker: MultiBoxTracker
     private val detectionHandler = Handler()
     private val detectionRunnable = Runnable {
         trackingOverlay.visibility = View.GONE
     }
 
-    private val objectListener = object: CameraPreviewAnalyzer.ObjectOfInterestListener {
+    private val objectListener = object : CameraPreviewAnalyzer.ObjectOfInterestListener {
         override fun onObjectDetected(
             label: String,
             confidence: Int,
@@ -78,7 +79,7 @@ class MainActivity : AppCompatActivity() {
             previewHeight: Int,
             sensorOrientation: Int
         ) {
-            tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation)
+            tracker.setFrameConfiguration(trackingOverlay.width, trackingOverlay.height, sensorOrientation)
         }
 
         override fun onLPDetected(vehicleFile: File?, lpFile: File?, lpNumber: String?) {
@@ -88,33 +89,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showDetectedVehicle(vehicleFile: File?, lpFile: File?, lpNumber: String?) {
-//        if(!lpNumber.isNullOrEmpty()) {
-        var vehicle:Bitmap? = null
-        if (vehicleFile == null) {
-            vehicleImage.setImageBitmap(null)
-        } else {
-            vehicle = ImageUtils.getSavedBitmap("vehicle")
-            vehicleImage.setImageBitmap(vehicle)
-        }
+        if(!lpNumber.isNullOrEmpty()) {
+            var vehicle: Bitmap? = null
+            if (vehicleFile == null) {
+                vehicleImage.setImageBitmap(null)
+            } else {
+                vehicle = ImageUtils.getSavedBitmap("vehicle")
+                vehicleImage.setImageBitmap(vehicle)
+            }
 
-        var lp:Bitmap? = null
-        if (lpFile == null) {
-            lpImage.setImageBitmap(null)
-        } else {
-            lp = ImageUtils.getSavedBitmap("lp_image")
-            lpImage.setImageBitmap(lp)
-        }
+            var lp: Bitmap? = null
+            if (lpFile == null) {
+                lpImage.setImageBitmap(null)
+            } else {
+                lp = ImageUtils.getSavedBitmap("lp_image")
+                lpImage.setImageBitmap(lp)
+            }
 
-        lpNumberTv.text = lpNumber ?: ""
+            lpNumberTv.text = lpNumber ?: ""
 
-        if (vehicle != null && lp != null) {
-            vehicleFile?.delete()
-            lpFile?.delete()
-            detectedVehicleLayout.visibility = View.VISIBLE
-        } else {
-//            detectedVehicleLayout.visibility = View.INVISIBLE
+            if (vehicle != null && lp != null) {
+                vehicleFile?.delete()
+                lpFile?.delete()
+                detectedVehicleLayout.visibility = View.VISIBLE
+            } else {
+                detectedVehicleLayout.visibility = View.INVISIBLE
+            }
         }
-//        }
     }
 
 
@@ -123,7 +124,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         tracker = MultiBoxTracker(this)
 
-        shouldAnalyze.setOnCheckedChangeListener { button, _ ->  cameraPreviewCallback?.shouldAnalyze = button.isChecked}
+        shouldAnalyze.setOnCheckedChangeListener { button, _ ->
+            cameraPreviewCallback?.shouldAnalyze = button.isChecked
+        }
 
         if (allPermissionsGranted()) {
             cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -137,18 +140,29 @@ class MainActivity : AppCompatActivity() {
                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
             )
         }
+
+        detectedVehicleLayout.setOnClickListener {
+            if (detectedVehicleLayout.isVisible) {
+                detectedVehicleLayout.visibility = View.INVISIBLE
+            }
+        }
     }
 
-    private fun bindPreview(cameraProvider : ProcessCameraProvider) {
-        val preview : Preview = Preview.Builder()
+    private fun bindPreview(cameraProvider: ProcessCameraProvider) {
+        val preview: Preview = Preview.Builder()
             .build()
 
-        val cameraSelector : CameraSelector = CameraSelector.Builder()
+        val cameraSelector: CameraSelector = CameraSelector.Builder()
             .requireLensFacing(CameraSelector.LENS_FACING_BACK)
             .build()
 
-        val cameraControl = CameraX.getCameraWithCameraSelector(cameraSelector) // you can set it to front
-        val meteringPoint = previewView.meteringPointFactory.createPoint(previewView.width/2f, previewView.height/2f, 1f)
+        val cameraControl =
+            CameraX.getCameraWithCameraSelector(cameraSelector) // you can set it to front
+        val meteringPoint = previewView.meteringPointFactory.createPoint(
+            previewView.width / 2f,
+            previewView.height / 2f,
+            1f
+        )
         val action = FocusMeteringAction.Builder(meteringPoint).build()
         cameraControl.cameraControl.startFocusAndMetering(action)
 
@@ -171,15 +185,17 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-        cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview,
-            imageAnalyzer)
+        cameraProvider.bindToLifecycle(
+            this as LifecycleOwner, cameraSelector, preview,
+            imageAnalyzer
+        )
     }
 
-    private fun getScreenOrientation():Int {
+    private fun getScreenOrientation(): Int {
         return when (windowManager.defaultDisplay.rotation) {
-            Surface . ROTATION_270 -> 270
-            Surface . ROTATION_180 -> 180
-            Surface . ROTATION_90 -> 90
+            Surface.ROTATION_270 -> 270
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_90 -> 90
             else -> 0
         }
     }
