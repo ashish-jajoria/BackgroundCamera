@@ -113,7 +113,7 @@ class CameraPreviewAnalyzer(
             // Initialize the storage bitmaps once when the resolution is known.
             previewHeight = image.height
             previewWidth = image.width
-            onPreviewSizeChosen(Size(previewWidth, previewHeight), 90)
+            onPreviewSizeChosen(90)
         } catch (e: Exception) {
             Timber.e(e)
             image.close()
@@ -131,7 +131,8 @@ class CameraPreviewAnalyzer(
     }
 
     private fun processImage(currTimestamp: Long, bitmap: Bitmap) {
-        rgbFrameBitmap = bitmap
+        rgbFrameBitmap = Bitmap.createScaledBitmap(bitmap, previewWidth, previewHeight, false)
+
         val mainCanvas = Canvas(croppedBitmap)
         frameToCropTransform?.let {
             mainCanvas.drawBitmap(rgbFrameBitmap, it, null)
@@ -359,10 +360,7 @@ class CameraPreviewAnalyzer(
     }
 
     @Suppress("SameParameterValue")
-    private fun onPreviewSizeChosen(size: Size, rotation: Int) {
-        previewWidth = size.width
-        previewHeight = size.height
-
+    private fun onPreviewSizeChosen(rotation: Int) {
         sensorOrientation = rotation - screenRotation
 
         croppedBitmap = Bitmap.createBitmap(

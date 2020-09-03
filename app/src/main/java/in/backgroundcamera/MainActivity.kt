@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
             previewHeight: Int,
             sensorOrientation: Int
         ) {
-            tracker.setFrameConfiguration(trackingOverlay.width, trackingOverlay.height, sensorOrientation)
+            tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation)
         }
 
         override fun onLPDetected(vehicleFile: File?, lpFile: File?, lpNumber: String?) {
