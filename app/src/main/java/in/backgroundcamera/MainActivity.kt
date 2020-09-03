@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity() {
 
         if (allPermissionsGranted()) {
             cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-            cameraProviderFuture.addListener({
+            cameraProviderFuture.addListener(Runnable {
                 val cameraProvider = cameraProviderFuture.get()
                 bindPreview(cameraProvider)
             }, ContextCompat.getMainExecutor(this))
@@ -171,8 +171,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-        var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview, imageAnalyzer)
-
+        cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview,
+            imageAnalyzer)
     }
 
     private fun getScreenOrientation():Int {
@@ -195,7 +195,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
                 cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-                cameraProviderFuture.addListener({
+                cameraProviderFuture.addListener(Runnable {
                     val cameraProvider = cameraProviderFuture.get()
                     bindPreview(cameraProvider)
                 }, ContextCompat.getMainExecutor(this))

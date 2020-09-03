@@ -7,9 +7,9 @@ import `in`.tflite.Classifier
 import `in`.tflite.TFLiteLPDetectionAPIModel
 import `in`.tflite.TFLiteVehicleDetectionAPIModel
 import `in`.tflite.model.SubmitLpResponse
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
-import android.os.Message
 import android.os.SystemClock
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -93,6 +93,7 @@ class CameraPreviewAnalyzer(
         return data // Return the byte array
     }
 
+    @SuppressLint("UnsafeExperimentalUsageError")
     override fun analyze(image: ImageProxy) {
         if (!shouldAnalyze) {
             image.close()
@@ -166,58 +167,50 @@ class CameraPreviewAnalyzer(
             for (result in results) {
                 val location = result.location
                 if (location != null && result.confidence >= MINIMUM_CONFIDENCE_SCORE) {
-                    result.location?.let { rect ->
-                        val recognizedBitmap =
-                            getRecognizedBitmap(Bitmap.createBitmap(croppedBitmap), rect)
-                            //getRecognizedBitmap(Bitmap.createBitmap(croppedBitmap), rect)
+                    cropToFrameTransform?.mapRect(location)
+                    result.location = location
+                    val recognizedBitmap =
+                        getRecognizedBitmap(location)
 
-                        //FOR VEHICLE ONLY MODE
-                        recognizedBitmap?.let {
-                            vehicleFile = ImageUtils.saveDetectedImage(it, "vehicle.jpg")
-                            withContext(Dispatchers.Main) {
-                                listener.onLPDetected(vehicleFile, null, null)
-                            }
+                    //FOR VEHICLE ONLY MODE
+                    recognizedBitmap?.let {
+                        vehicleFile = ImageUtils.saveDetectedImage(it, "vehicle.jpg")
+                        withContext(Dispatchers.Main) {
+                            listener.onLPDetected(vehicleFile, null, null)
                         }
-                        /*canvas.drawRect(location, paint)
-                        cropToFrameTransform!!.mapRect(location)
-                        result.location = location
-                        mappedRecognitions.add(result)*/
 
-                        recognizedBitmap?.let {
-                            val lpResults = withContext(Dispatchers.IO) {
-                                Timber.e("Entered LP")
-                                listener.updateStatus("Detecting LP")
-                                val startTime = SystemClock.uptimeMillis()
-                                val lpResults = lpClassifier.recognizeImage(recognizedBitmap)
-                                lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
-                                Timber.d(String.format("Detect: %s", results))
-                                Timber.e("Time Taken LP $lastProcessingTimeMs")
-                                lpResults
-                            }
-                            Timber.e("Exit LP")
+                        val lpResults = withContext(Dispatchers.IO) {
+                            Timber.e("Entered LP")
+                            listener.updateStatus("Detecting LP")
+                            val startTime = SystemClock.uptimeMillis()
+                            val lpResults = lpClassifier.recognizeImage(recognizedBitmap)
+                            lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
+                            Timber.d(String.format("Detect: %s", results))
+                            Timber.e("Time Taken LP $lastProcessingTimeMs")
+                            lpResults
+                        }
+                        Timber.e("Exit LP")
 
-                            if (lpResults.isNullOrEmpty()) {
-                                result.confidence = 0f
+                        if (lpResults.isNullOrEmpty()) {
+                            result.confidence = 0f
+                        } else {
+                            val maxResult = lpResults.first()
+                            if (isValidLp(maxResult.location)) {
+                                canvas.drawRect(location, paint)
+//                                cropToFrameTransform!!.mapRect(location)
+//                                result.location = location
+                                mappedRecognitions.add(result)
+
+                                val lpLocation = getLpPoints(maxResult.location, location)
+                                canvas.drawRect(lpLocation, paint)
+//                                cropToFrameTransform!!.mapRect(lpLocation)
+                                maxResult.location = lpLocation
+
+                                val lpImage = getLpImage(lpLocation)
+                                lpFile = ImageUtils.saveDetectedImage(lpImage, "lp_image.jpg")
+                                mappedRecognitions.add(maxResult)
                             } else {
-                                val maxResult = lpResults.first()
-                                if (isValidLp(maxResult.location)) {
-                                    vehicleFile = ImageUtils.saveDetectedImage(it, "vehicle.jpg")
-                                    canvas.drawRect(location, paint)
-                                    cropToFrameTransform!!.mapRect(location)
-                                    result.location = location
-                                    mappedRecognitions.add(result)
-
-                                    val lpLocation = getLpPoints(maxResult.location, rect)
-                                    canvas.drawRect(lpLocation, paint)
-                                    cropToFrameTransform!!.mapRect(lpLocation)
-                                    maxResult.location = lpLocation
-
-                                    val lpImage = getLpImage(lpLocation)
-                                    lpFile = ImageUtils.saveDetectedImage(lpImage, "lp_image.jpg")
-                                    mappedRecognitions.add(maxResult)
-                                } else {
-                                    result.confidence = 0f
-                                }
+                                result.confidence = 0f
                             }
                         }
                     }
@@ -272,7 +265,7 @@ class CameraPreviewAnalyzer(
             .filter { r -> (r.location.height() / r.location.width()) > 0.8 }
             .filter { r -> r.confidence > 0.8f }
             .filter { r -> r.location.height() > 50 && r.location.width() > 50 }
-            .maxByOrNull { r -> r.location.width() * r.location.height() }
+            .maxBy { r -> r.location.width() * r.location.height() }
         return if (result == null) {
             emptyList()
         } else {
@@ -349,10 +342,10 @@ class CameraPreviewAnalyzer(
         return RectF(left, top, right, bottom)
     }
 
-    private fun getRecognizedBitmap(croppedBitmap: Bitmap, rectF: RectF): Bitmap? {
+    private fun getRecognizedBitmap(rectF: RectF): Bitmap? {
         return try {
             Bitmap.createBitmap(
-                croppedBitmap,
+                rgbFrameBitmap,
                 rectF.left.toInt(),
                 rectF.top.toInt(),
                 rectF.width().toInt(),

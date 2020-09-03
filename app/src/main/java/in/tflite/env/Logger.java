@@ -23,7 +23,7 @@ import java.util.Set;
 /** Wrapper for the platform log function, allows convenient message prefixing and log disabling. */
 public final class Logger {
   private static final String DEFAULT_TAG = "tensorflow";
-  private static final int DEFAULT_MIN_LOG_LEVEL = Log.DEBUG;
+  private static final int DEFAULT_MIN_LOG_LEVEL = Log.VERBOSE;
 
   // Classes to be ignored when examining the stack trace
   private static final Set<String> IGNORED_CLASS_NAMES;
