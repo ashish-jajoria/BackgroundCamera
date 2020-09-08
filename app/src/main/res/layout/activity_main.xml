@@ -38,76 +38,82 @@
         android:textColor="@android:color/white" />
 
     <LinearLayout
-        android:id="@+id/liveVehicleLayout"
         android:layout_width="150dp"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_alignParentEnd="true"
-        android:background="#EEEEEE"
-        android:clickable="true"
-        android:focusable="true"
-        android:orientation="vertical"
-        android:padding="10dp"
-        android:visibility="invisible">
+        android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/liveVehicleImage"
-            android:layout_width="match_parent"
-            android:layout_height="150dp"
-            android:layout_marginBottom="10dp" />
-
-        <ImageView
-            android:id="@+id/liveLpImage"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_gravity="center_horizontal"
-            android:scaleType="fitXY" />
-
-        <TextView
-            android:id="@+id/liveLpNumberTv"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
+        <LinearLayout
+            android:id="@+id/detectedVehicleLayout"
+            android:layout_width="150dp"
+            android:layout_height="0dp"
+            android:layout_weight="5"
+            android:background="#80EEEEEE"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
             android:padding="5dp"
-            android:textColor="@android:color/black"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-    </LinearLayout>
+            android:visibility="invisible">
 
-    <LinearLayout
-        android:id="@+id/detectedVehicleLayout"
-        android:layout_width="150dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:background="#EEEEEE"
-        android:clickable="true"
-        android:focusable="true"
-        android:orientation="vertical"
-        android:padding="10dp"
-        android:visibility="invisible">
+            <ImageView
+                android:id="@+id/vehicleImage"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="6"
+                android:layout_marginBottom="5dp" />
 
-        <ImageView
-            android:id="@+id/vehicleImage"
+            <ImageView
+                android:id="@+id/lpImage"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="2"
+                android:layout_gravity="center_horizontal"
+                android:scaleType="fitXY" />
+
+            <TextView
+                android:id="@+id/lpNumberTv"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="2"
+                android:gravity="center"
+                android:padding="5dp"
+                android:textColor="@android:color/black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Space
             android:layout_width="match_parent"
-            android:layout_height="150dp"
-            android:layout_marginBottom="10dp" />
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
 
-        <ImageView
-            android:id="@+id/lpImage"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_gravity="center_horizontal"
-            android:scaleType="fitXY" />
-
-        <TextView
-            android:id="@+id/lpNumberTv"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
+        <LinearLayout
+            android:id="@+id/liveVehicleLayout"
+            android:layout_width="150dp"
+            android:layout_height="0dp"
+            android:layout_weight="4"
+            android:background="#80EEEEEE"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
             android:padding="5dp"
-            android:textColor="@android:color/black"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:visibility="invisible">
+
+            <ImageView
+                android:id="@+id/liveVehicleImage"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="7"
+                android:layout_marginBottom="5dp" />
+
+            <ImageView
+                android:id="@+id/liveLpImage"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="3"
+                android:layout_gravity="center_horizontal"
+                android:scaleType="fitXY" />
+        </LinearLayout>
     </LinearLayout>
 
     <ProgressBar

@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tracker: MultiBoxTracker
     var isShowingAlert: Boolean = false
     private var detectedVehicles = mutableListOf<DetectedVehicle>()
+    private var alertVehicle: DetectedVehicle? = null
     private val detectionHandler = Handler()
     private val detectionRunnable = Runnable {
         trackingOverlay.visibility = View.GONE
@@ -101,16 +102,23 @@ class MainActivity : AppCompatActivity() {
 
         override fun onLpNumberDetected(detectedVehicle: DetectedVehicle) {
             if (detectedVehicle.alert) {
-                detectedVehicles.add(detectedVehicle)
+                if (!detectedVehicles.any { dv -> dv.lpNumber == detectedVehicle.lpNumber } &&
+                    alertVehicle?.lpNumber != detectedVehicle.lpNumber) {
+                    detectedVehicles.add(detectedVehicle)
+                }
 
                 if (isShowingAlert) {
                     return
                 }
-                val firstVehicle = detectedVehicles.first()
-                detectedVehicles.removeFirst()
-                showDetectedVehicle(firstVehicle)
+                alertVehicle = detectedVehicles.firstOrNull()
+                detectedVehicles.removeFirstOrNull()
+                alertVehicle?.let {
+                    showDetectedVehicle(it)
+                }
             } else {
                 if (isShowingAlert) {
+                    detectedVehicle.vehicleFile?.delete()
+                    detectedVehicle.lpFile?.delete()
                     return
                 } else {
                     showDetectedVehicle(detectedVehicle)
@@ -164,10 +172,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (detectedVehicle.alert) {
-                detectedVehicleLayout.setBackgroundColor(Color.parseColor("#FF0000"));
+                detectedVehicleLayout.setBackgroundColor(Color.parseColor("#80FF0000"));
                 SoundUtils.playSound("lp_alert", this);
             } else {
-                detectedVehicleLayout.setBackgroundColor(Color.parseColor("#EEEEEE"));
+                detectedVehicleLayout.setBackgroundColor(Color.parseColor("#80EEEEEE"));
             }
         }
     }
@@ -216,6 +224,7 @@ class MainActivity : AppCompatActivity() {
         detectedVehicleLayout.setOnClickListener {
             if (isShowingAlert) {
                 isShowingAlert = false
+                alertVehicle = null
                 if (detectedVehicles.isNotEmpty()) {
                     showDetectedVehicle(detectedVehicles.first())
                     detectedVehicles.removeFirst()
