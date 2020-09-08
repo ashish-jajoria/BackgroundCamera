@@ -24,11 +24,13 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
 import co.nayan.login.LoginActivity
-import co.nayan.login.models.User
+import co.nayan.login.models.*
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
 import org.koin.android.ext.android.inject
+import org.koin.android.viewmodel.ext.android.viewModel
 import timber.log.Timber
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -40,6 +42,7 @@ typealias LumaListener = (luma: Double) -> Unit
 class MainActivity : AppCompatActivity() {
 
     private val userRepository: UserRepository by inject()
+    private val userViewModel: UserViewModel by viewModel()
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
@@ -176,40 +179,65 @@ class MainActivity : AppCompatActivity() {
 
         intent.getParcelableExtra<User>("user")?.let { userRepository.setUserInfo(it) }
 
+        userViewModel.state.observe(this, stateObserver)
+
         if (userRepository.isUserLoggedIn()) {
-            tracker = MultiBoxTracker(this)
-
-            shouldAnalyze.setOnCheckedChangeListener { button, _ ->
-                cameraPreviewCallback?.shouldAnalyze = button.isChecked
-            }
-
-            if (allPermissionsGranted()) {
-                initializeCameraProperties()
-            } else {
-                ActivityCompat.requestPermissions(
-                    this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-                )
-            }
-
-            detectedVehicleLayout.setOnClickListener {
-                if (isShowingAlert) {
-                    isShowingAlert = false
-                    if (detectedVehicles.isNotEmpty()) {
-                        showDetectedVehicle(detectedVehicles.first())
-                        detectedVehicles.removeFirst()
-                        return@setOnClickListener
-                    }
-                }
-
-                if (detectedVehicleLayout.isVisible) {
-                    detectedVehicleLayout.visibility = View.INVISIBLE
-                }
-            }
+            userViewModel.isPocUser()
         } else {
-            Intent(this@MainActivity, LoginActivity::class.java).apply {
-                this.putExtra(LoginActivity.VERSION_NAME, BuildConfig.VERSION_NAME)
-                this.putExtra(LoginActivity.VERSION_CODE, BuildConfig.VERSION_CODE)
-                startActivity(this)
+            loggedOutUser()
+        }
+    }
+
+    private fun loggedOutUser() {
+        Intent(this@MainActivity, LoginActivity::class.java).apply {
+            this.putExtra(LoginActivity.VERSION_NAME, BuildConfig.VERSION_NAME)
+            this.putExtra(LoginActivity.VERSION_CODE, BuildConfig.VERSION_CODE)
+            startActivity(this)
+            finish()
+        }
+    }
+
+    private val stateObserver: Observer<ActivityState> = Observer {
+        when (it) {
+            ProgressState -> {
+               progressBar.visibility = View.VISIBLE
+            }
+            is PocUserSuccessState -> {
+                progressBar.visibility = View.GONE
+                if(it.pocUserResponse.isAllowed == true) {
+                    tracker = MultiBoxTracker(this)
+
+                    shouldAnalyze.setOnCheckedChangeListener { button, _ ->
+                        cameraPreviewCallback?.shouldAnalyze = button.isChecked
+                    }
+
+                    if (allPermissionsGranted()) {
+                        initializeCameraProperties()
+                    } else {
+                        ActivityCompat.requestPermissions(
+                            this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+                        )
+                    }
+
+                    detectedVehicleLayout.setOnClickListener {
+                        if (isShowingAlert) {
+                            isShowingAlert = false
+                            if (detectedVehicles.isNotEmpty()) {
+                                showDetectedVehicle(detectedVehicles.first())
+                                detectedVehicles.removeFirst()
+                                return@setOnClickListener
+                            }
+                        }
+
+                        if (detectedVehicleLayout.isVisible) {
+                            detectedVehicleLayout.visibility = View.INVISIBLE
+                        }
+                    }
+                } else {
+                    loggedOutUser()
+                }
+            }
+            is ErrorState -> {
                 finish()
             }
         }

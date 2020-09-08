@@ -3,6 +3,7 @@ package `in`.di
 import `in`.api.BackgroundCameraService
 import `in`.backgroundcamera.UserRepository
 import `in`.config.*
+import `in`.backgroundcamera.UserViewModel
 import co.nayan.login.config.AuthManager
 import co.nayan.login.config.ConnectivityInterceptor
 import co.nayan.login.config.LoginConfig
@@ -13,6 +14,7 @@ import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
+import org.koin.android.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -54,4 +56,6 @@ val backgroundCameraModule = module {
     }
 
     single { UserRepository(get(), get()) }
+
+    viewModel { UserViewModel(get()) }
 }
