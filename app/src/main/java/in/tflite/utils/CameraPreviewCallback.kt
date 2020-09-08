@@ -6,6 +6,7 @@ import `in`.backgroundcamera.toBitmap
 import `in`.tflite.Classifier
 import `in`.tflite.TFLiteLPDetectionAPIModel
 import `in`.tflite.TFLiteVehicleDetectionAPIModel
+import `in`.tflite.model.DetectedVehicle
 import `in`.tflite.model.SubmitLpResponse
 import android.annotation.SuppressLint
 import android.content.Context
@@ -24,7 +25,9 @@ import org.tensorflow.lite.gpu.GpuDelegate
 import timber.log.Timber
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.HashMap
 import kotlin.math.roundToInt
 
 
@@ -47,9 +50,11 @@ class CameraPreviewAnalyzer(
         fun onObjectOfInterestDetected()
         fun invalidateOverlay()
         fun addOverlayCallbacks(previewWidth: Int, previewHeight: Int, sensorOrientation: Int)
-        fun onLPDetected(vehicleFile: File?, lpFile: File?, lpNumber: String?)
+        fun onLpNumberDetected(detectedVehicle: DetectedVehicle)
+        fun onVehicleAndLpDetected(vehicleFile: Bitmap?, lpFile: Bitmap?)
     }
 
+    private var detectedVehicles = mutableListOf<UUID>()
     var shouldAnalyze: Boolean = true
     private val client = OkHttpClient.Builder().callTimeout(10, TimeUnit.SECONDS).build()
 
@@ -175,10 +180,9 @@ class CameraPreviewAnalyzer(
 
                     //FOR VEHICLE ONLY MODE
                     recognizedBitmap?.let {
-                        vehicleFile = ImageUtils.saveDetectedImage(it, "vehicle.jpg")
-                        /*withContext(Dispatchers.Main) {
-                            listener.onLPDetected(vehicleFile, null, null)
-                        }*/
+                        withContext(Dispatchers.Main) {
+                            listener.onVehicleAndLpDetected(it, null)
+                        }
 
                         val lpResults = withContext(Dispatchers.IO) {
                             Timber.e("Entered LP")
@@ -207,7 +211,17 @@ class CameraPreviewAnalyzer(
                                 maxResult.location = lpLocation
 
                                 val lpImage = getLpImage(lpLocation)
-                                lpFile = ImageUtils.saveDetectedImage(lpImage, "lp_image.jpg")
+
+                                val uuid = UUID.randomUUID()
+                                detectedVehicles.add(uuid)
+
+                                vehicleFile = ImageUtils.saveDetectedImage(it, "${uuid}_vehicle.jpg")
+                                lpFile = ImageUtils.saveDetectedImage(lpImage, "${uuid}_lp_image.jpg")
+
+                                withContext(Dispatchers.Main) {
+                                    listener.onVehicleAndLpDetected(it, lpImage)
+                                }
+
                                 mappedRecognitions.add(maxResult)
                             } else {
                                 result.confidence = 0f
@@ -239,11 +253,13 @@ class CameraPreviewAnalyzer(
             vehicleFile?.let { f1 ->
                 lpFile?.let { f2 ->
                     listener.updateStatus("Detecting LP Number")
-                    val lpResult = uploadLpImage(f2)
+                    val lastUuid = detectedVehicles.first()
+                    val lpResult = uploadLpImage(f2, lastUuid)
                     Timber.e("Exit LP Upload")
                     withContext(Dispatchers.Main) {
                         Timber.e("Entered show lp")
-                        listener.onLPDetected(f1, f2, lpResult)
+                        detectedVehicles.remove(lastUuid)
+                        listener.onLpNumberDetected(DetectedVehicle(f1, f2, lpResult?.result, lpResult?.show_alert ?: false, lastUuid))
                     }
                     listener.updateStatus("")
                     Timber.e("Exit show LP")
@@ -290,13 +306,14 @@ class CameraPreviewAnalyzer(
         }
     }
 
-    private suspend fun uploadLpImage(lpFile: File): String? = withContext(Dispatchers.IO) {
+    private suspend fun uploadLpImage(lpFile: File, uuid: UUID): SubmitLpResponse? = withContext(Dispatchers.IO) {
         Timber.e("Entered LP Upload")
         val uploadUrl = "http://35.229.238.216/ocr/read_lp"
 
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("image", lpFile.name, lpFile.asRequestBody())
+            .addFormDataPart("request_code", uuid.toString())
             .build()
 
         val request =
@@ -312,14 +329,16 @@ class CameraPreviewAnalyzer(
                     Timber.e("Upload LP:: Could not upload ${lpFile.name}")
                     return@withContext null
                 } else {
+                    val responseString = responseBody.string()
                     val lpResponse =
-                        Gson().fromJson(responseBody.string(), SubmitLpResponse::class.java)
+                        Gson().fromJson(responseString, SubmitLpResponse::class.java)
+                    Timber.e("LP Number $responseString")
                     Timber.e("LP Number ${lpResponse.result} (${lpResponse.result})")
                     val lpResult = lpResponse.result
                     if (lpResult.isNullOrEmpty()) {
                         return@withContext null
                     } else {
-                        return@withContext lpResult
+                        return@withContext lpResponse
                     }
                 }
             } else {
