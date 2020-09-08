@@ -182,7 +182,8 @@ class MainActivity : AppCompatActivity() {
         userViewModel.state.observe(this, stateObserver)
 
         if (userRepository.isUserLoggedIn()) {
-            userViewModel.isPocUser()
+            //userViewModel.isPocUser()
+            setupViews()
         } else {
             loggedOutUser()
         }
@@ -197,6 +198,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupViews() {
+        tracker = MultiBoxTracker(this)
+
+        shouldAnalyze.setOnCheckedChangeListener { button, _ ->
+            cameraPreviewCallback?.shouldAnalyze = button.isChecked
+        }
+
+        if (allPermissionsGranted()) {
+            initializeCameraProperties()
+        } else {
+            ActivityCompat.requestPermissions(
+                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+            )
+        }
+
+        detectedVehicleLayout.setOnClickListener {
+            if (isShowingAlert) {
+                isShowingAlert = false
+                if (detectedVehicles.isNotEmpty()) {
+                    showDetectedVehicle(detectedVehicles.first())
+                    detectedVehicles.removeFirst()
+                    return@setOnClickListener
+                }
+            }
+
+            if (detectedVehicleLayout.isVisible) {
+                detectedVehicleLayout.visibility = View.INVISIBLE
+            }
+        }
+    }
+
     private val stateObserver: Observer<ActivityState> = Observer {
         when (it) {
             ProgressState -> {
@@ -205,34 +237,7 @@ class MainActivity : AppCompatActivity() {
             is PocUserSuccessState -> {
                 progressBar.visibility = View.GONE
                 if(it.pocUserResponse.isAllowed == true) {
-                    tracker = MultiBoxTracker(this)
-
-                    shouldAnalyze.setOnCheckedChangeListener { button, _ ->
-                        cameraPreviewCallback?.shouldAnalyze = button.isChecked
-                    }
-
-                    if (allPermissionsGranted()) {
-                        initializeCameraProperties()
-                    } else {
-                        ActivityCompat.requestPermissions(
-                            this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-                        )
-                    }
-
-                    detectedVehicleLayout.setOnClickListener {
-                        if (isShowingAlert) {
-                            isShowingAlert = false
-                            if (detectedVehicles.isNotEmpty()) {
-                                showDetectedVehicle(detectedVehicles.first())
-                                detectedVehicles.removeFirst()
-                                return@setOnClickListener
-                            }
-                        }
-
-                        if (detectedVehicleLayout.isVisible) {
-                            detectedVehicleLayout.visibility = View.INVISIBLE
-                        }
-                    }
+                    setupViews()
                 } else {
                     loggedOutUser()
                 }
