@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">login</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="submit">Submit</string>
+    <string name="login">Login</string>
+    <string name="something_went_wrong">Something went wrong</string>
+    <string name="could_not_login">Could not login</string>
+    <string name="check_your_internet_connection">Check your internet connection</string>
+</resources>

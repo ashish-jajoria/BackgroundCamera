@@ -1,17 +1,30 @@
 package `in`
 
+import `in`.backgroundcamera.BuildConfig
+import `in`.di.backgroundCameraModule
 import android.app.Application
 import android.content.Context
 import androidx.camera.camera2.Camera2Config
 import androidx.camera.core.CameraXConfig
+import co.nayan.login.di.loginModule
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
 import timber.log.Timber
-import timber.log.Timber.DebugTree
 
-class BackgroundCameraApp: Application(), CameraXConfig.Provider {
+class BackgroundCameraApp : Application(), CameraXConfig.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        Timber.plant(DebugTree())
+
+        startKoin {
+            androidLogger()
+            androidContext(this@BackgroundCameraApp)
+            modules(listOf(backgroundCameraModule, loginModule))
+        }
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
         setContext(this)
     }
 

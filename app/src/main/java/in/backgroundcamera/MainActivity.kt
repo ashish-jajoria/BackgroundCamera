@@ -7,6 +7,7 @@ import `in`.tflite.tracking.MultiBoxTracker
 import `in`.tflite.utils.CameraPreviewAnalyzer
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -23,11 +24,12 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
+import co.nayan.login.LoginActivity
+import co.nayan.login.models.User
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
+import org.koin.android.ext.android.inject
 import timber.log.Timber
-import java.io.File
-import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -37,11 +39,17 @@ typealias LumaListener = (luma: Double) -> Unit
 @SuppressLint("RestrictedApi")
 class MainActivity : AppCompatActivity() {
 
+    private val userRepository: UserRepository by inject()
+
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS =
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE)
+            arrayOf(
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            )
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -125,7 +133,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showDetectedVehicle(detectedVehicle: DetectedVehicle) {
         isShowingAlert = detectedVehicle.alert
-        if(!detectedVehicle.lpNumber.isNullOrEmpty()) {
+        if (!detectedVehicle.lpNumber.isNullOrEmpty()) {
             var vehicle: Bitmap? = null
             if (detectedVehicle.vehicleFile == null) {
                 vehicleImage.setImageBitmap(null)
@@ -152,9 +160,9 @@ class MainActivity : AppCompatActivity() {
                 detectedVehicleLayout.visibility = View.INVISIBLE
             }
 
-            if(detectedVehicle.alert) {
+            if (detectedVehicle.alert) {
                 detectedVehicleLayout.setBackgroundColor(Color.parseColor("#FF0000"));
-                SoundUtils.playSound("lp_alert",this);
+                SoundUtils.playSound("lp_alert", this);
             } else {
                 detectedVehicleLayout.setBackgroundColor(Color.parseColor("#EEEEEE"));
             }
@@ -165,32 +173,44 @@ class MainActivity : AppCompatActivity() {
         setTheme(R.style.AppTheme)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        tracker = MultiBoxTracker(this)
 
-        shouldAnalyze.setOnCheckedChangeListener { button, _ ->
-            cameraPreviewCallback?.shouldAnalyze = button.isChecked
-        }
+        intent.getParcelableExtra<User>("user")?.let { userRepository.setUserInfo(it) }
 
-        if (allPermissionsGranted()) {
-            initializeCameraProperties()
-        } else {
-            ActivityCompat.requestPermissions(
-                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
-        }
+        if (userRepository.isUserLoggedIn()) {
+            tracker = MultiBoxTracker(this)
 
-        detectedVehicleLayout.setOnClickListener {
-            if (isShowingAlert) {
-                isShowingAlert = false
-                if (detectedVehicles.isNotEmpty()) {
-                    showDetectedVehicle(detectedVehicles.first())
-                    detectedVehicles.removeFirst()
-                    return@setOnClickListener
-                }
+            shouldAnalyze.setOnCheckedChangeListener { button, _ ->
+                cameraPreviewCallback?.shouldAnalyze = button.isChecked
             }
 
-            if (detectedVehicleLayout.isVisible) {
-                detectedVehicleLayout.visibility = View.INVISIBLE
+            if (allPermissionsGranted()) {
+                initializeCameraProperties()
+            } else {
+                ActivityCompat.requestPermissions(
+                    this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+                )
+            }
+
+            detectedVehicleLayout.setOnClickListener {
+                if (isShowingAlert) {
+                    isShowingAlert = false
+                    if (detectedVehicles.isNotEmpty()) {
+                        showDetectedVehicle(detectedVehicles.first())
+                        detectedVehicles.removeFirst()
+                        return@setOnClickListener
+                    }
+                }
+
+                if (detectedVehicleLayout.isVisible) {
+                    detectedVehicleLayout.visibility = View.INVISIBLE
+                }
+            }
+        } else {
+            Intent(this@MainActivity, LoginActivity::class.java).apply {
+                this.putExtra(LoginActivity.VERSION_NAME, BuildConfig.VERSION_NAME)
+                this.putExtra(LoginActivity.VERSION_CODE, BuildConfig.VERSION_CODE)
+                startActivity(this)
+                finish()
             }
         }
     }
@@ -249,7 +269,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        cameraExecutor.shutdown()
+        if(this:: cameraExecutor.isInitialized) {
+            cameraExecutor.shutdown()
+        }
     }
 
     override fun onRequestPermissionsResult(
