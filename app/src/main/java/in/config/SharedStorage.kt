@@ -5,7 +5,7 @@ import android.content.Context
 class SharedStorage(context: Context) {
 
     private val sharedPreferences =
-        context.getSharedPreferences(Storage.C3_SPECIALIST_STORAGE, Context.MODE_PRIVATE)
+        context.getSharedPreferences(Storage.BACKGROUND_CAMERA_STORAGE, Context.MODE_PRIVATE)
 
     fun setUserProfileInfo(userInfo: String) {
         sharedPreferences.edit().putString(Storage.USER_INFO, userInfo).apply()
@@ -49,5 +49,9 @@ class SharedStorage(context: Context) {
 
     fun getUID(): String {
         return sharedPreferences.getString(Storage.UID, "").toString()
+    }
+
+    fun clearPreferences() {
+        sharedPreferences.edit().clear().apply()
     }
 }

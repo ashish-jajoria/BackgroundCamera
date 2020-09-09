@@ -1,5 +1,6 @@
 package `in`.backgroundcamera
 
+import `in`.config.Constants
 import `in`.tflite.Classifier
 import `in`.tflite.env.ImageUtils
 import `in`.tflite.model.DetectedVehicle
@@ -7,7 +8,10 @@ import `in`.tflite.tracking.MultiBoxTracker
 import `in`.tflite.utils.CameraPreviewAnalyzer
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -25,8 +29,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import co.nayan.login.LoginActivity
-import co.nayan.login.models.*
+import co.nayan.login.models.ActivityState
+import co.nayan.login.models.ErrorState
+import co.nayan.login.models.ProgressState
+import co.nayan.login.models.User
+import com.google.android.material.snackbar.Snackbar
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
 import org.koin.android.ext.android.inject
@@ -53,6 +62,25 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 Manifest.permission.READ_EXTERNAL_STORAGE
             )
+    }
+
+    private val responseCodeStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.let {
+                when (it.action) {
+                    Constants.UNAUTHORIZED -> {
+                        loggedOutUser()
+                    }
+                    Constants.INTERNAL_SERVER_ERROR -> {
+                        Snackbar.make(
+                            progressBar,
+                            getString(R.string.something_went_wrong),
+                            Snackbar.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -185,19 +213,29 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        registerBroadcastReceiver()
+
         intent.getParcelableExtra<User>("user")?.let { userRepository.setUserInfo(it) }
 
         userViewModel.state.observe(this, stateObserver)
 
         if (userRepository.isUserLoggedIn()) {
-            //userViewModel.isPocUser()
-            setupViews()
+            userViewModel.isPocUser()
         } else {
             loggedOutUser()
         }
     }
 
+    private fun registerBroadcastReceiver() {
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(Constants.UNAUTHORIZED)
+        intentFilter.addAction(Constants.INTERNAL_SERVER_ERROR)
+        LocalBroadcastManager.getInstance(this)
+            .registerReceiver(responseCodeStatusReceiver, intentFilter)
+    }
+
     private fun loggedOutUser() {
+        userRepository.userLoggedOut()
         Intent(this@MainActivity, LoginActivity::class.java).apply {
             this.putExtra(LoginActivity.VERSION_NAME, BuildConfig.VERSION_NAME)
             this.putExtra(LoginActivity.VERSION_CODE, BuildConfig.VERSION_CODE)
@@ -241,18 +279,18 @@ class MainActivity : AppCompatActivity() {
     private val stateObserver: Observer<ActivityState> = Observer {
         when (it) {
             ProgressState -> {
-               progressBar.visibility = View.VISIBLE
+                progressBar.visibility = View.VISIBLE
             }
             is PocUserSuccessState -> {
                 progressBar.visibility = View.GONE
-                if(it.pocUserResponse.isAllowed == true) {
+                if (it.pocUserResponse.isAllowed == true) {
                     setupViews()
                 } else {
                     loggedOutUser()
                 }
             }
             is ErrorState -> {
-                finish()
+                loggedOutUser()
             }
         }
     }
@@ -282,7 +320,8 @@ class MainActivity : AppCompatActivity() {
         cameraPreviewCallback = CameraPreviewAnalyzer(
             this,
             objectListener,
-            getScreenOrientation()
+            getScreenOrientation(),
+            userRepository
         )
 
         val imageAnalyzer = ImageAnalysis.Builder()
@@ -311,9 +350,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if(this:: cameraExecutor.isInitialized) {
+        if (this::cameraExecutor.isInitialized) {
             cameraExecutor.shutdown()
         }
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(responseCodeStatusReceiver)
     }
 
     override fun onRequestPermissionsResult(

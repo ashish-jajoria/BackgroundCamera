@@ -1,6 +1,8 @@
 package `in`.config
 
 import android.content.Context
+import android.content.Intent
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import okhttp3.Headers
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -18,6 +20,7 @@ class HeadersInterceptor(private val sharedStorage: SharedStorage, private val c
         val originalRequest: Request = chain.request()
 
         val headers = Headers.Builder()
+            .add("api-key", Constants.READ_LP_API_KEY)
             .add("content-type", "application/json")
             .add("token-type", "Bearer")
             .add("access-token", sharedStorage.getAccessToken())
@@ -32,18 +35,37 @@ class HeadersInterceptor(private val sharedStorage: SharedStorage, private val c
 
         val response = chain.proceed(newRequest)
 
-        accessToken = response.headers.get("access-token").toString()
-        accessToken?.let { sharedStorage.setAccessToken(it) }
+        when (response.code) {
+            401 -> {
+                removeHeaders()
+                LocalBroadcastManager.getInstance(context)
+                    .sendBroadcast(Intent(Constants.UNAUTHORIZED))
+            }
+            500 -> {
+                LocalBroadcastManager.getInstance(context)
+                    .sendBroadcast(Intent(Constants.INTERNAL_SERVER_ERROR))
+            }
+            else -> {
+                accessToken = response.headers["access-token"].toString()
+                accessToken?.let { sharedStorage.setAccessToken(it) }
 
-        client = response.headers.get("client").toString()
-        client?.let { sharedStorage.setClient(it) }
+                client = response.headers["client"].toString()
+                client?.let { sharedStorage.setClient(it) }
 
-        expiry = response.headers.get("expiry").toString()
-        expiry?.let { sharedStorage.setExpiry(it) }
+                expiry = response.headers["expiry"].toString()
+                expiry?.let { sharedStorage.setExpiry(it) }
 
-        uid = response.headers.get("uid").toString()
-        uid?.let { sharedStorage.setUID(it) }
-
+                uid = response.headers["uid"].toString()
+                uid?.let { sharedStorage.setUID(it) }
+            }
+        }
         return response
+    }
+
+    private fun removeHeaders() {
+        accessToken = null
+        client = null
+        expiry = null
+        uid = null
     }
 }

@@ -93,4 +93,7 @@ dependencies {
 
     // Timber for logging
     implementation "com.jakewharton.timber:timber:${rootProject.ext.timber_version}"
+
+    //local broadcast manager
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
 }
