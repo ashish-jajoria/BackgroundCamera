@@ -71,8 +71,8 @@ class LoginActivity : AppCompatActivity() {
             is LoginViewModel.LoginSuccessState -> {
                 val intent = Intent(this@LoginActivity, loginConfig.mainActivityClass())
                 intent.putExtra(KEY_USER, it.user)
-                startActivity(intent)
                 finish()
+                startActivity(intent)
             }
             is ErrorState -> {
                 usernameInput.editText?.isEnabled = true
