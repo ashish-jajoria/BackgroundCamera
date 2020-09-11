@@ -20,7 +20,6 @@ class HeadersInterceptor(private val sharedStorage: SharedStorage, private val c
         val originalRequest: Request = chain.request()
 
         val headers = Headers.Builder()
-            .add("api-key", Constants.READ_LP_API_KEY)
             .add("content-type", "application/json")
             .add("token-type", "Bearer")
             .add("access-token", sharedStorage.getAccessToken())

@@ -146,6 +146,11 @@ class CameraPreviewAnalyzer(
         Timber.d("start time: ${System.currentTimeMillis()}")
         GlobalScope.launch {
             Timber.e("Entered Global")
+
+            withContext(Dispatchers.Main) {
+                listener.onVehicleAndLpDetected(null, null)
+            }
+
             var vehicleFile: File? = null
             var lpFile: File? = null
             var results = withContext(Dispatchers.IO) {
@@ -253,9 +258,10 @@ class CameraPreviewAnalyzer(
                 }
             }
 
+            readyForNextImage()
+
             vehicleFile?.let { f1 ->
                 lpFile?.let { f2 ->
-                    listener.updateStatus("Detecting LP Number")
                     val lastUuid = detectedVehicles.first()
                     val lpResult = uploadLpImage(f2, lastUuid)
                     Timber.e("Exit LP Upload")
@@ -272,17 +278,11 @@ class CameraPreviewAnalyzer(
                             )
                         )
                     }
-                    listener.updateStatus("")
                     Timber.e("Exit show LP")
                 }
             }
 
             Timber.d("end time: ${System.currentTimeMillis()}")
-
-            withContext(Dispatchers.IO) {
-                delay(5_00)
-            }
-            readyForNextImage()
         }
     }
 

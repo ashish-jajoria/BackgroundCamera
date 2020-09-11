@@ -12,10 +12,10 @@
 
     <ImageView
         android:layout_width="match_parent"
-        android:layout_height="20dp"
+        android:layout_height="30dp"
         android:layout_marginTop="8dp"
         android:alpha="0.4"
-        android:src="@drawable/nayan_technologies" />
+        android:src="@drawable/nayan_logo_side_by_side" />
 
     <in.tflite.customview.OverlayView
         android:id="@+id/trackingOverlay"

@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity() {
 
         override fun onObjectOfInterestDetected() {
             trackingOverlay.visibility = View.VISIBLE
-            detectionHandler.postDelayed(detectionRunnable, 1_000)
+            detectionHandler.postDelayed(detectionRunnable, 5_00)
         }
 
         override fun invalidateOverlay() {
@@ -163,11 +163,11 @@ class MainActivity : AppCompatActivity() {
         liveVehicleImage.setImageBitmap(vehicleBitmap)
         liveLpImage.setImageBitmap(lpBitmap)
 
-        if (vehicleBitmap == null && lpBitmap == null) {
+        liveVehicleLayout.visibility = View.VISIBLE
+        /*if (vehicleBitmap == null && lpBitmap == null) {
             liveVehicleLayout.visibility = View.INVISIBLE
         } else {
-            liveVehicleLayout.visibility = View.VISIBLE
-        }
+        }*/
     }
 
     private fun showDetectedVehicle(detectedVehicle: DetectedVehicle) {

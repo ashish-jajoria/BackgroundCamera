@@ -1,8 +1,7 @@
 package `in`.config
 
 object Constants {
-    const val READ_LP_API_KEY = "v4RjT5ZwLTWGH2xHceTLH8w5"
-    const val BASE_URL = "https://7c7cfdb1a818.ngrok.io"
+    const val BASE_URL = "http://34.80.225.68"
     const val INTERNAL_SERVER_ERROR = "co.nayan.c3_specialist.INTERNAL_SERVER_ERROR"
     const val UNAUTHORIZED = "co.nayan.c3_specialist.UNAUTHORIZED"
 }
